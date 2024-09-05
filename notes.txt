@@ -1,0 +1,13 @@
+need to use std::env to allow for the command line arguments
+to get command lina arguments, we run env::args()
+this will return an iterator with all the args and we can call .collect() on it to get a vector
+need to annotate the type with collect
+
+args function and invalid unicode
+	the std::env::args will panic if any argument contains invalid unicode
+	if we need to get args with invalid unicdoe, use std::env::args_os instead
+	this function will return an iterator of an OsString instead of String
+
+the args function will collect the binary as the first arg
+same behavior with args as C
+
