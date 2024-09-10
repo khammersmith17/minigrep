@@ -1,7 +1,8 @@
-use fancy::printcoln;
+use fancy::colorize;
 use std::env::{current_dir, var};
 use std::error::Error;
 use std::fs::{read_dir, read_to_string};
+use std::io::{stdout, Write};
 
 #[derive(Default, Debug)]
 pub struct SearchResult {
@@ -101,17 +102,20 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             search_result: current_result,
         });
     }
-
+    let stdout = stdout();
+    let mut handle = stdout.lock();
     for file_hit in results {
-        printcoln!("[bold|blue]File: [underline|blue]{}", file_hit.file_name);
+        let file = colorize!("[bold|blue]File: [underline|blue]{}", file_hit.file_name);
+        write!(handle, "{}\n", file)?;
         for query_hit in file_hit.search_result {
-            printcoln!(
-                "[bold|red]{0}: {1}",
+            let result = colorize!(
+                "[bold|red]{0}: {1}\n",
                 query_hit.line_number,
-                query_hit.line_text
+                query_hit.line_text,
             );
+            write!(handle, "{}", result)?;
         }
-        println!("\n");
+        write!(handle, "\n")?;
     }
 
     Ok(())
