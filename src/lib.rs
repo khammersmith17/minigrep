@@ -3,6 +3,8 @@ use std::env::{current_dir, var};
 use std::error::Error;
 use std::fs::{read_dir, read_to_string};
 use std::io::{stdout, Write};
+use std::path::Path;
+use walkdir::{DirEntry, WalkDir};
 
 #[derive(Default, Debug)]
 pub struct SearchResult {
@@ -48,15 +50,23 @@ impl Config {
                     Some(path) => path.to_string(),
                     None => return Err("Could not convert Path"),
                 };
+                let children: Vec<DirEntry> = WalkDir::new(&current_dir_str)
+                    .into_iter()
+                    .filter_map(|entry| entry.ok())
+                    .collect();
 
                 let mut file_paths: Vec<String> = Vec::new();
+                /*
                 let children = match read_dir(current_dir_str) {
                     Ok(paths) => paths,
                     Err(_) => return Err("Could not get the child paths"),
-                };
-                for file in children {
-                    let file = file.unwrap();
+                };*/
+
+                for file in children.into_iter() {
                     let path = file.path();
+                    if !path.is_file() {
+                        continue;
+                    }
                     let path_str = match path.to_str() {
                         Some(path) => path,
                         None => continue,
@@ -80,13 +90,15 @@ impl Config {
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut all_file_contents: Vec<FileMeta> = Vec::new();
     for file in config.file_paths {
-        let contents = read_to_string(&file)?;
-        let file_meta = FileMeta {
-            file_name: file,
-            file_contents: contents,
-        };
+        // let contents = read_to_string(&file)?;
+        if let Ok(contents) = read_to_string(&file) {
+            let file_meta = FileMeta {
+                file_name: file,
+                file_contents: contents,
+            };
 
-        all_file_contents.push(file_meta);
+            all_file_contents.push(file_meta);
+        }
     }
 
     let mut results: Vec<FileResults> = Vec::new();
