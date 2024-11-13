@@ -1,9 +1,10 @@
 use fancy::colorize;
 use std::env::{current_dir, var};
 use std::error::Error;
-use std::fs::{read_dir, read_to_string};
+use std::fs::read_to_string;
 use std::io::{stdout, Write};
-use std::path::Path;
+use std::sync::mpsc::channel;
+use std::thread::spawn;
 use walkdir::{DirEntry, WalkDir};
 
 #[derive(Default, Debug)]
@@ -101,19 +102,32 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut results: Vec<FileResults> = Vec::new();
+    //let mut results: Vec<FileResults> = Vec::new();
+    let (sender, results) = channel();
     for file in all_file_contents {
-        let current_result = if config.ignore_case {
-            search_case_insensitive(&config.query, &file.file_contents)
-        } else {
-            search(&config.query, &file.file_contents)
-        };
+        let local_send = sender.clone();
+        let query = config.query.clone();
 
-        results.push(FileResults {
-            file_name: file.file_name,
-            search_result: current_result,
+        spawn(move || {
+            let current_result = if config.ignore_case {
+                search_case_insensitive(&query, &file.file_contents)
+            } else {
+                search(&query, &file.file_contents)
+            };
+
+            if current_result.len() > 1 {
+                local_send
+                    .send(FileResults {
+                        file_name: file.file_name,
+                        search_result: current_result,
+                    })
+                    .unwrap();
+            }
         });
     }
+
+    drop(sender);
+
     let stdout = stdout();
     let mut handle = stdout.lock();
     for file_hit in results {
